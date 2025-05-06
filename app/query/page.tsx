@@ -1,54 +1,89 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Loader2, Play } from "lucide-react"
-import { toast } from "sonner"
+import { useState, useEffect } from "react";
+import { Loader2, Play } from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useDatabase } from "@/lib/database-provider"
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useDatabase } from "@/lib/database-provider";
 
 export default function QueryPage() {
-  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase()
-  const [query, setQuery] = useState("SELECT * FROM patients LIMIT 10")
-  const [results, setResults] = useState<any[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isExecuting, setIsExecuting] = useState(false)
+  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase();
+  const [query, setQuery] = useState("SELECT * FROM patients LIMIT 10");
+  const [results, setResults] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   async function runQuery() {
     if (!initialized) {
       toast.error("Database Error", {
         description: "Database is not initialized. Please refresh the page.",
-      })
-      return
+      });
+      return;
     }
 
-    setIsExecuting(true)
-    setError(null)
+    setIsExecuting(true);
+    setError(null);
 
     try {
-      const queryResults = await executeQuery(query)
-      setResults(queryResults)
+      const queryResults = await executeQuery(query);
+      setResults(queryResults);
 
       if (queryResults.length === 0) {
         toast("Query Executed", {
           description: "Query executed successfully, but returned no results.",
-        })
+        });
       }
     } catch (error) {
-      console.error("Query execution error:", error)
-      setError(error instanceof Error ? error.message : "Unknown error occurred")
-      setResults(null)
+      console.error("Query execution error:", error);
+      setError(
+        error instanceof Error ? error.message : "Unknown error occurred"
+      );
+      setResults(null);
 
       toast.error("Query Error", {
         description: "There was an error executing your SQL query.",
-      })
+      });
     } finally {
-      setIsExecuting(false)
+      setIsExecuting(false);
     }
   }
+
+  useEffect(() => {
+    const handleDatabaseUpdate = (event: CustomEvent) => {
+      console.log(event);
+      location.reload();
+    };
+
+    window.addEventListener(
+      "database-updated",
+      handleDatabaseUpdate as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "database-updated",
+        handleDatabaseUpdate as EventListener
+      );
+    };
+  }, [query, initialized, isExecuting]);
 
   if (dbLoading) {
     return (
@@ -58,7 +93,7 @@ export default function QueryPage() {
           <p>Initializing database...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -66,7 +101,9 @@ export default function QueryPage() {
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>SQL Query Interface</CardTitle>
-          <CardDescription>Run custom SQL queries on the patient database</CardDescription>
+          <CardDescription>
+            Run custom SQL queries on the patient database
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -77,7 +114,9 @@ export default function QueryPage() {
           />
         </CardContent>
         <CardFooter className="flex justify-between">
-          <div>{error && <p className="text-sm text-destructive">{error}</p>}</div>
+          <div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
           <Button onClick={runQuery} disabled={isExecuting}>
             {isExecuting ? (
               <>
@@ -117,7 +156,9 @@ export default function QueryPage() {
                     {results.map((row, i) => (
                       <TableRow key={i}>
                         {Object.values(row).map((value: any, j) => (
-                          <TableCell key={j}>{value === null ? "NULL" : String(value)}</TableCell>
+                          <TableCell key={j}>
+                            {value === null ? "NULL" : String(value)}
+                          </TableCell>
                         ))}
                       </TableRow>
                     ))}
@@ -133,5 +174,5 @@ export default function QueryPage() {
         </Card>
       )}
     </div>
-  )
+  );
 }

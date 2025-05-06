@@ -6,8 +6,8 @@ export default function Home() {
   return (
     <div className="container flex flex-col items-center justify-center min-h-screen py-12 space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight">Patient Registration System</h1>
-        <p className="text-xl text-muted-foreground">A frontend-only patient management system using Pglite</p>
+        <h1 className="text-4xl font-bold tracking-tight">Patient Registration App</h1>
+        <p className="text-xl text-muted-foreground">A patient management app using Pglite</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">

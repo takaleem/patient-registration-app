@@ -1,8 +1,8 @@
 "use client";
 
 import type React from "react";
-
 import { createContext, useContext, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { BroadcastChannel } from "broadcast-channel";
 
 type Database = any;
@@ -31,7 +31,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       try {
         const { PGlite } = await import("@electric-sql/pglite");
         const pglite = new PGlite("idb://patient-db");
-
         setDb(pglite);
 
         await pglite.query(`
@@ -54,11 +53,25 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
         channel.onmessage = async (message) => {
           if (message.type === "db-updated") {
-            console.log("Database updated");
+            console.log("Received broadcast message:", message);
+            const event = new CustomEvent("database-updated", {
+              detail: message.detail,
+            });
+
+            console.log("Dispatching database-updated event:", event);
+            window.dispatchEvent(event);
+
+            toast("Database Updated", {
+              description: `Patient data has been ${message.detail.action}ed in another tab.`,
+            });
           }
         };
       } catch (error) {
         console.error("Failed to initialize database:", error);
+        toast.error("Database Error", {
+          description:
+            "Failed to initialize the database. Please refresh the page.",
+        });
         setIsLoading(false);
       }
     }
@@ -77,15 +90,40 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const result = await db.query(sql);
-      if (
-        sql.trim().toLowerCase().startsWith("insert") ||
-        sql.trim().toLowerCase().startsWith("update") ||
-        sql.trim().toLowerCase().startsWith("delete")
-      ) {
-        channel.postMessage({ type: "db-updated" });
+
+      const sqlLower = sql.trim().toLowerCase();
+      let actionType = null;
+
+      if (sqlLower.startsWith("insert")) {
+        actionType = "insert";
+      } else if (sqlLower.startsWith("update")) {
+        actionType = "update";
+      } else if (sqlLower.startsWith("delete")) {
+        actionType = "delete";
       }
 
-      return result;
+      if (actionType) {
+        const tableMatch = sqlLower.match(
+          /into\s+(\w+)|update\s+(\w+)|from\s+(\w+)/
+        );
+        const tableName = tableMatch
+          ? tableMatch[1] || tableMatch[2] || tableMatch[3]
+          : "unknown";
+
+        const message = {
+          type: "db-updated",
+          detail: {
+            table: tableName,
+            action: actionType,
+            timestamp: new Date().getTime(),
+          },
+        };
+
+        console.log("Broadcasting database change:", message);
+        channel.postMessage(message);
+      }
+
+      return result.rows;
     } catch (error) {
       console.error("Query execution error:", error);
       throw error;
