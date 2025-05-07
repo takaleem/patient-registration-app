@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -178,9 +178,29 @@ const CalendarWithDropdowns = ({ field }: CalendarWithDropdownsProps) => {
 };
 
 export default function RegisterPage() {
-  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase();
+  const { executeQuery, isLoading: dbLoading, initialized, syncDatabase } = useDatabase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const handleDatabaseUpdate = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.table === "patients" || !customEvent.detail?.table) {
+        try {
+          await syncDatabase();
+          console.log("Database synced automatically from registration page");
+        } catch (error) {
+          console.error("Error during automatic sync:", error);
+        }
+      }
+    };
+
+    window.addEventListener("database-updated", handleDatabaseUpdate);
+
+    return () => {
+      window.removeEventListener("database-updated", handleDatabaseUpdate);
+    };
+  }, [syncDatabase]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
