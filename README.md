@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Patient Registration App
 
-## Getting Started
+A **frontend-only patient management app** built with Next.js and Pglite. This application allows healthcare providers to register patients, view and search patient records, and run custom SQL queries on patient data — all without a backend server.
 
-First, run the development server:
+## 🔗 Live Demo
+
+👉 [Try it live](https://patient-registration-app-omega.vercel.app/)
+
+## 📚 Usage Instructions
+
+Check out the full usage guide here:  
+📖 [Documentation](https://patient-registration-app-omega.vercel.app/docs)
+
+---
+
+## ✨ Features
+
+- **Patient Registration**: Comprehensive form for adding new patients with validation
+- **Patient Records**: View and search patient information
+- **SQL Query Interface**: Run custom SQL queries directly on patient data
+- **Client-side Database**: All data stored locally in the browser using Pglite
+- **Data Persistence**: Patient records persist across page refreshes
+- **Multi-tab Support**: Real-time sync across browser tabs using Broadcast Channel API
+- **Dark/Light Mode**: Toggle between dark and light themes
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
+
+---
+
+## 🛠 Technologies Used
+
+- **Next.js**
+- **React**
+- **TypeScript**
+- **Tailwind CSS**
+- **shadcn/ui**
+- **Pglite**
+- **Zod**
+- **React Hook Form**
+- **date-fns**
+- **Sonner**
+- **Broadcast Channel API**
+
+---
+
+## ⚙️ Setup Guide
+
+### Prerequisites
+
+Make sure you have the following installed:
+
+- **Node.js**: Version 16.x or higher
+  - [Download from Node.js website](https://nodejs.org/)
+  - Verify with `node -v`
+- **npm** (comes with Node.js) or **yarn**
+  - If using yarn, install with `npm install -g yarn`
+  - Verify with `npm -v` or `yarn -v`
+- **Git**: For version control
+  - [Download from Git website](https://git-scm.com/downloads)
+  - Verify with `git --version`
+
+###  Clone the Repository, Install Dependencies and Run the Development Server
 
 ```bash
+git clone https://github.com/takaleem/patient-registration-app.git
+
+cd patient-registration-app
+
+
+# Install dependencies
+npm install
+# or
+yarn install
+
+
+#run the development server:
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
