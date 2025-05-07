@@ -60,6 +60,123 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface CalendarField {
+  value?: Date;
+  onChange: (date: Date) => void;
+}
+
+interface CalendarWithDropdownsProps {
+  field: CalendarField;
+}
+
+const CalendarWithDropdowns = ({ field }: CalendarWithDropdownsProps) => {
+  const [date, setDate] = useState<Date>(field.value || new Date());
+  const [month, setMonth] = useState<number>(
+    field.value ? field.value.getMonth() : new Date().getMonth()
+  );
+  const [year, setYear] = useState<number>(
+    field.value ? field.value.getFullYear() : new Date().getFullYear()
+  );
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from(
+    { length: currentYear - 1899 },
+    (_, i) => currentYear - i
+  );
+
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const handleYearChange = (selectedYear: string) => {
+    const newYear = parseInt(selectedYear);
+    setYear(newYear);
+
+    const newDate = new Date(date);
+    newDate.setFullYear(newYear);
+    setDate(newDate);
+  };
+
+  const handleMonthChange = (selectedMonth: string) => {
+    const newMonth = parseInt(selectedMonth);
+    setMonth(newMonth);
+
+    const newDate = new Date(date);
+    newDate.setMonth(newMonth);
+    setDate(newDate);
+  };
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      setDate(selectedDate);
+      setMonth(selectedDate.getMonth());
+      setYear(selectedDate.getFullYear());
+      field.onChange(selectedDate);
+    }
+  };
+
+  return (
+    <div className="flex flex-col space-y-2 p-3">
+      <div className="flex space-x-2">
+        <div className="w-1/2">
+          <Select value={month.toString()} onValueChange={handleMonthChange}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((monthName, index) => (
+                <SelectItem key={index} value={index.toString()}>
+                  {monthName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-1/2">
+          <Select value={year.toString()} onValueChange={handleYearChange}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent className="h-56 overflow-y-auto">
+              {years.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Calendar
+        mode="single"
+        selected={field.value}
+        onSelect={handleDateSelect}
+        month={new Date(year, month)}
+        onMonthChange={(date: Date) => {
+          setMonth(date.getMonth());
+          setYear(date.getFullYear());
+        }}
+        disabled={(date: Date) =>
+          date > new Date() || date < new Date("1900-01-01")
+        }
+        initialFocus
+      />
+    </div>
+  );
+};
+
 export default function RegisterPage() {
   const { executeQuery, isLoading: dbLoading, initialized } = useDatabase();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -209,15 +326,7 @@ export default function RegisterPage() {
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                          />
+                          <CalendarWithDropdowns field={field} />
                         </PopoverContent>
                       </Popover>
                       <FormMessage />
