@@ -1,8 +1,37 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+"use client";
+
+import { useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDatabase } from "@/lib/database-provider";
+import { toast } from "sonner";
 
 export default function Home() {
+  const { syncDatabase } = useDatabase();
+
+  useEffect(() => {
+    const handleDatabaseUpdate = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.table === "patients") {
+        try {
+          await syncDatabase();
+        } catch (error) {
+          console.error("Error during automatic sync:", error);
+          toast.error("Sync Failed", {
+            description: "Failed to synchronize data. Please refresh the page.",
+          });
+        }
+      }
+    };
+
+    window.addEventListener("database-updated", handleDatabaseUpdate);
+
+    return () => {
+      window.removeEventListener("database-updated", handleDatabaseUpdate);
+    };
+  }, [syncDatabase]);
+
   return (
     <div className="container flex flex-col items-center justify-center min-h-screen py-12 space-y-8">
       <div className="text-center space-y-2">
@@ -60,5 +89,5 @@ export default function Home() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
