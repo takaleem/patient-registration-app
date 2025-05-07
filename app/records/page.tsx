@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -37,50 +37,70 @@ type Patient = {
 };
 
 export default function RecordsPage() {
-  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase();
+  const {
+    executeQuery,
+    isLoading: dbLoading,
+    initialized,
+    syncDatabase,
+  } = useDatabase();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const loadPatients = async () => {
+    if (!initialized) return;
+
+    try {
+      setIsLoading(true);
+      const results = await executeQuery(`
+        SELECT id, first_name, last_name, date_of_birth, gender, email, phone, created_at
+        FROM patients
+        ORDER BY created_at DESC
+      `);
+      setPatients(results);
+    } catch (error) {
+      console.error("Error loading patients:", error);
+      toast.error("Error", {
+        description: "Failed to load patient records.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await syncDatabase();
+      await loadPatients();
+      //   toast.success("Sync Complete", {
+      //     description: "Patient data has been synchronized with other tabs.",
+      //   });
+    } catch (error) {
+      console.error("Error during manual sync:", error);
+      toast.error("Sync Failed", {
+        description: "Failed to synchronize data. Please try again.",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadPatients() {
-      if (!initialized) return;
-
-      try {
-        setIsLoading(true);
-        const results = await executeQuery(`
-          SELECT id, first_name, last_name, date_of_birth, gender, email, phone, created_at
-          FROM patients
-          ORDER BY created_at DESC
-        `);
-        setPatients(results);
-      } catch (error) {
-        console.error("Error loading patients:", error);
-        toast.error("Error", {
-          description: "Failed to load patient records.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
     if (initialized) {
       loadPatients();
     }
 
-    const handleDatabaseUpdate = async (event: Event) => {
+    const handleDatabaseUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
-      console.log(
-        "Database update received in records page:",
-        customEvent.detail
-      );
 
       if (
         customEvent.detail?.table === "patients" ||
         !customEvent.detail?.table
       ) {
         console.log("Reloading patients data...");
-        location.reload();
+        handleSync();
       }
     };
 
@@ -124,6 +144,17 @@ export default function RecordsPage() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleSync}
+                disabled={isSyncing}
+                title="Sync with other tabs"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
+                />
+              </Button>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input

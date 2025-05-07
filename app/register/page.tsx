@@ -1,23 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { format } from "date-fns"
-import { CalendarIcon, Loader2 } from 'lucide-react'
-import { toast } from "sonner"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { format } from "date-fns";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useDatabase } from "@/lib/database-provider"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useDatabase } from "@/lib/database-provider";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -32,14 +56,14 @@ const formSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   medicalHistory: z.string().optional(),
-})
+});
 
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.infer<typeof formSchema>;
 
 export default function RegisterPage() {
-  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const router = useRouter()
+  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -51,20 +75,20 @@ export default function RegisterPage() {
       address: "",
       medicalHistory: "",
     },
-  })
+  });
 
   async function onSubmit(data: FormValues) {
     if (!initialized) {
       toast.error("Database Error", {
         description: "Database is not initialized. Please refresh the page.",
-      })
-      return
+      });
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
-      const formattedDate = format(data.dateOfBirth, "yyyy-MM-dd")
+      const formattedDate = format(data.dateOfBirth, "yyyy-MM-dd");
 
       await executeQuery(`
         INSERT INTO patients (
@@ -86,22 +110,23 @@ export default function RegisterPage() {
           '${data.address || ""}', 
           '${data.medicalHistory || ""}'
         )
-      `)
+      `);
 
       toast.success("Patient Registered", {
         description: "The patient has been successfully registered.",
-      })
+      });
 
-      form.reset()
+      form.reset();
 
-      router.push("/records")
+      router.push("/records");
     } catch (error) {
-      console.error("Error registering patient:", error)
+      console.error("Error registering patient:", error);
       toast.error("Registration Failed", {
-        description: "There was an error registering the patient. Please try again.",
-      })
+        description:
+          "There was an error registering the patient. Please try again.",
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
   }
 
@@ -113,7 +138,7 @@ export default function RegisterPage() {
           <p>Initializing database...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -121,7 +146,9 @@ export default function RegisterPage() {
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Register New Patient</CardTitle>
-          <CardDescription>Enter the patient's information to register them in the system.</CardDescription>
+          <CardDescription>
+            Enter the patient's information to register them in the system.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -172,7 +199,11 @@ export default function RegisterPage() {
                                 !field.value ? "text-muted-foreground" : ""
                               }`}
                             >
-                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </FormControl>
@@ -182,7 +213,9 @@ export default function RegisterPage() {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
                             initialFocus
                           />
                         </PopoverContent>
@@ -198,7 +231,10 @@ export default function RegisterPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Gender</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select gender" />
@@ -208,7 +244,9 @@ export default function RegisterPage() {
                           <SelectItem value="male">Male</SelectItem>
                           <SelectItem value="female">Female</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
-                          <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                          <SelectItem value="prefer_not_to_say">
+                            Prefer not to say
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -225,7 +263,11 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="john.doe@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="john.doe@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormDescription>Optional</FormDescription>
                       <FormMessage />
@@ -256,7 +298,10 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="123 Main St, City, State, ZIP" {...field} />
+                      <Input
+                        placeholder="123 Main St, City, State, ZIP"
+                        {...field}
+                      />
                     </FormControl>
                     <FormDescription>Optional</FormDescription>
                     <FormMessage />
@@ -298,5 +343,5 @@ export default function RegisterPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

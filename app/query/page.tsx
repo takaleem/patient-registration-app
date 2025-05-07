@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Play } from "lucide-react";
+import { Loader2, Play, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,17 @@ import {
 import { useDatabase } from "@/lib/database-provider";
 
 export default function QueryPage() {
-  const { executeQuery, isLoading: dbLoading, initialized } = useDatabase();
+  const {
+    executeQuery,
+    isLoading: dbLoading,
+    initialized,
+    syncDatabase,
+  } = useDatabase();
   const [query, setQuery] = useState("SELECT * FROM patients LIMIT 10");
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   async function runQuery() {
     if (!initialized) {
@@ -66,22 +72,54 @@ export default function QueryPage() {
     }
   }
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await syncDatabase();
+      if (results) {
+        const queryResults = await executeQuery(query);
+        setResults(queryResults);
+      }
+    //   toast.success("Sync Complete", {
+    //     description: "Database has been synchronized with other tabs.",
+    //   });
+    } catch (error) {
+      console.error("Error during manual sync:", error);
+      toast.error("Sync Failed", {
+        description: "Failed to synchronize data. Please try again.",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const refreshQueryResults = async () => {
+    if (!query.trim().toLowerCase().startsWith("select")) {
+      return;
+    }
+
+    if (!initialized || isExecuting) {
+      return;
+    }
+
+    try {
+      console.log("Refreshing query results...");
+      handleSync();  
+    } catch (error) {
+      console.error("Error refreshing query results:", error);
+    }
+  };
+
   useEffect(() => {
-    const handleDatabaseUpdate = (event: CustomEvent) => {
-      console.log(event);
-      location.reload();
+    const handleDatabaseUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+    handleSync();
     };
 
-    window.addEventListener(
-      "database-updated",
-      handleDatabaseUpdate as EventListener
-    );
+    window.addEventListener("database-updated", handleDatabaseUpdate);
 
     return () => {
-      window.removeEventListener(
-        "database-updated",
-        handleDatabaseUpdate as EventListener
-      );
+      window.removeEventListener("database-updated", handleDatabaseUpdate);
     };
   }, [query, initialized, isExecuting]);
 
@@ -100,10 +138,25 @@ export default function QueryPage() {
     <div className="container py-10">
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>SQL Query Interface</CardTitle>
-          <CardDescription>
-            Run custom SQL queries on the patient database
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>SQL Query Interface</CardTitle>
+              <CardDescription>
+                Run custom SQL queries on the patient database
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSync}
+              disabled={isSyncing}
+              title="Sync with other tabs"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
+              />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Textarea

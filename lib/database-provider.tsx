@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { BroadcastChannel } from "broadcast-channel";
 
@@ -9,8 +9,9 @@ type Database = any;
 type DatabaseContextType = {
   db: Database | null;
   isLoading: boolean;
-  executeQuery: (sql: string) => Promise<any[]>;
+  executeQuery: (sql: string, params?: any[]) => Promise<any[]>;
   initialized: boolean;
+  syncDatabase: () => Promise<void>;
 };
 
 const DatabaseContext = createContext<DatabaseContextType>({
@@ -18,13 +19,160 @@ const DatabaseContext = createContext<DatabaseContextType>({
   isLoading: true,
   executeQuery: async () => [],
   initialized: false,
+  syncDatabase: async () => {},
 });
+
+const DB_DUMP_KEY = "patient_db_dump";
+const DB_DUMP_TIMESTAMP_KEY = "patient_db_dump_timestamp";
+const DB_LAST_ID_KEY = "patient_db_last_id";
 
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<Database | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [channel] = useState(() => new BroadcastChannel("patient-db-channel"));
+  const dbRef = useRef<Database | null>(null);
+
+  const dumpDatabase = async () => {
+    if (!dbRef.current) return;
+
+    try {
+      const patients = await dbRef.current.query("SELECT * FROM patients");
+
+      const maxId = patients.rows.reduce((max: number, patient: any) => {
+        return Math.max(max, parseInt(patient.id));
+      }, 0);
+
+      localStorage.setItem(DB_DUMP_KEY, JSON.stringify(patients.rows));
+      localStorage.setItem(DB_DUMP_TIMESTAMP_KEY, Date.now().toString());
+      localStorage.setItem(DB_LAST_ID_KEY, maxId.toString());
+    } catch (error) {
+      console.error("Error dumping database:", error);
+    }
+  };
+
+  const restoreDatabase = async () => {
+    if (!dbRef.current) return false;
+
+    try {
+      const dumpStr = localStorage.getItem(DB_DUMP_KEY);
+      const lastIdStr = localStorage.getItem(DB_LAST_ID_KEY);
+
+      if (!dumpStr || !lastIdStr) {
+        console.log("Missing localStorage data, cannot restore database");
+        return false;
+      }
+
+      let patients;
+      try {
+        patients = JSON.parse(dumpStr);
+      } catch (parseError) {
+        console.error("Error parsing localStorage data:", parseError);
+        localStorage.removeItem(DB_DUMP_KEY);
+        localStorage.removeItem(DB_DUMP_TIMESTAMP_KEY);
+        localStorage.removeItem(DB_LAST_ID_KEY);
+        return false;
+      }
+
+      await dbRef.current.query("DELETE FROM patients");
+
+      for (const patient of patients) {
+        await dbRef.current.query(
+          `INSERT INTO patients (
+            id, first_name, last_name, date_of_birth, gender, 
+            email, phone, address, medical_history, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          ON CONFLICT (id) DO NOTHING`,
+          [
+            patient.id,
+            patient.first_name,
+            patient.last_name,
+            patient.date_of_birth,
+            patient.gender,
+            patient.email,
+            patient.phone,
+            patient.address,
+            patient.medical_history,
+            patient.created_at,
+          ]
+        );
+      }
+
+      const lastId = localStorage.getItem(DB_LAST_ID_KEY) || "0";
+      const nextId = parseInt(lastId) + 1;
+
+      await dbRef.current.query(`SELECT setval('patients_id_seq', $1, false)`, [
+        nextId,
+      ]);
+
+      return true;
+    } catch (error) {
+      console.error("Error restoring database:", error);
+      return false;
+    }
+  };
+
+  const syncDatabase = async () => {
+    if (!dbRef.current || !initialized) return;
+
+    try {
+      setIsLoading(true);
+
+      const lastDumpTimestamp = localStorage.getItem(DB_DUMP_TIMESTAMP_KEY);
+
+      if (lastDumpTimestamp) {
+        const success = await restoreDatabase();
+        if (success) {
+          toast.success("Database Synced", {
+            description: "Patient data has been synchronized with other tabs.",
+          });
+        }
+      } else {
+        await ensureLocalStorageData();
+        await restoreDatabase();
+      }
+    } catch (error) {
+      console.error("Error syncing database:", error);
+      toast.error("Sync Error", {
+        description: "Failed to synchronize database with other tabs.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const ensureLocalStorageData = async () => {
+    if (!dbRef.current) return;
+
+    try {
+      const dumpExists = localStorage.getItem(DB_DUMP_KEY);
+      const timestampExists = localStorage.getItem(DB_DUMP_TIMESTAMP_KEY);
+      const lastIdExists = localStorage.getItem(DB_LAST_ID_KEY);
+
+      if (!dumpExists || !timestampExists || !lastIdExists) {
+        const patients = await dbRef.current.query("SELECT * FROM patients");
+
+        if (patients.rows.length > 0) {
+          const maxId = patients.rows.reduce((max: number, patient: any) => {
+            return Math.max(max, parseInt(patient.id));
+          }, 0);
+
+          localStorage.setItem(DB_DUMP_KEY, JSON.stringify(patients.rows));
+          localStorage.setItem(DB_DUMP_TIMESTAMP_KEY, Date.now().toString());
+          localStorage.setItem(DB_LAST_ID_KEY, maxId.toString());
+        } else {
+          console.log(
+            "No patients in database, initializing empty localStorage"
+          );
+          localStorage.setItem(DB_DUMP_KEY, JSON.stringify([]));
+          localStorage.setItem(DB_DUMP_TIMESTAMP_KEY, Date.now().toString());
+          localStorage.setItem(DB_LAST_ID_KEY, "0");
+        }
+      }
+    } catch (error) {
+      console.error("Error ensuring localStorage data:", error);
+    }
+  };
 
   useEffect(() => {
     async function initDatabase() {
@@ -32,6 +180,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         const { PGlite } = await import("@electric-sql/pglite");
         const pglite = new PGlite("idb://patient-db");
         setDb(pglite);
+        dbRef.current = pglite;
 
         await pglite.query(`
           CREATE TABLE IF NOT EXISTS patients (
@@ -48,22 +197,25 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
           )
         `);
 
+        await restoreDatabase();
+        await ensureLocalStorageData();
+
         setInitialized(true);
         setIsLoading(false);
 
         channel.onmessage = async (message) => {
           if (message.type === "db-updated") {
-            console.log("Received broadcast message:", message);
-            const event = new CustomEvent("database-updated", {
-              detail: message.detail,
-            });
+            setTimeout(async () => {
+              await syncDatabase();
+              const event = new CustomEvent("database-updated", {
+                detail: message.detail,
+              });
 
-            console.log("Dispatching database-updated event:", event);
-            window.dispatchEvent(event);
-
-            toast("Database Updated", {
-              description: `Patient data has been ${message.detail.action}ed in another tab.`,
-            });
+              window.dispatchEvent(event);
+              //   toast("Database Updated", {
+              //     description: `Patient data has been ${message.detail.action}ed in another tab.`,
+              //   });
+            }, 300);
           }
         };
       } catch (error) {
@@ -83,13 +235,16 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     };
   }, [channel]);
 
-  const executeQuery = async (sql: string): Promise<any[]> => {
+  const executeQuery = async (
+    sql: string,
+    params: any[] = []
+  ): Promise<any[]> => {
     if (!db) {
       throw new Error("Database not initialized");
     }
 
     try {
-      const result = await db.query(sql);
+      const result = await db.query(sql, params);
 
       const sqlLower = sql.trim().toLowerCase();
       let actionType = null;
@@ -109,6 +264,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
         const tableName = tableMatch
           ? tableMatch[1] || tableMatch[2] || tableMatch[3]
           : "unknown";
+        await dumpDatabase();
 
         const message = {
           type: "db-updated",
@@ -119,7 +275,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
           },
         };
 
-        console.log("Broadcasting database change:", message);
         channel.postMessage(message);
       }
 
@@ -132,7 +287,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DatabaseContext.Provider
-      value={{ db, isLoading, executeQuery, initialized }}
+      value={{ db, isLoading, executeQuery, initialized, syncDatabase }}
     >
       {children}
     </DatabaseContext.Provider>
