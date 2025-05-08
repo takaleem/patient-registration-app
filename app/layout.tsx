@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "sonner"
 import { Navbar } from "@/components/navbar"
 import { DatabaseProvider } from "@/lib/database-provider"
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -37,6 +38,7 @@ export default function RootLayout({
             <Toaster richColors />
           </DatabaseProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
